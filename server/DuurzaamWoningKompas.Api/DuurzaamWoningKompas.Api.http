@@ -1,0 +1,57 @@
+@DuurzaamWoningKompas.Api_HostAddress = http://localhost:5244
+
+GET {{DuurzaamWoningKompas.Api_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+POST {{DuurzaamWoningKompas.Api_HostAddress}}/api/woningcheck/leads
+Content-Type: application/json
+
+{
+  "submissionId": "{{$guid}}",
+  "woningtype": "Tussenwoning",
+  "bouwjaar": "1975 - 1991",
+  "zonnepanelen": "Nee",
+  "stroomverbruik": 3000,
+  "gasverbruik": 1200,
+  "interesses": ["Lagere energierekening"],
+  "hoofddoel": "Lagere maandlasten",
+  "starttermijn": "Binnen 6-12 maanden",
+  "postcode": "1234 AB",
+  "huisnummer": "12",
+  "naam": "Test Aanvraag",
+  "email": "test@example.com",
+  "telefoon": "",
+  "consent": {
+    "adviceConsent": true,
+    "matchingConsent": false,
+    "consentText": "Toestemming voor woningadvies en contactopvolging.",
+    "consentVersion": "2026-07-05",
+    "sourceUrl": "http://localhost:5173/#/woningcheck"
+  },
+  "tracking": {
+    "utmSource": "local",
+    "utmMedium": "manual",
+    "utmCampaign": "api-check",
+    "utmTerm": "",
+    "utmContent": "",
+    "referrer": "",
+    "landingPage": "http://localhost:5173/"
+  }
+}
+
+###
+
+POST {{DuurzaamWoningKompas.Api_HostAddress}}/api/admin/session
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "change-this-local-admin-password"
+}
+
+###
+
+GET {{DuurzaamWoningKompas.Api_HostAddress}}/api/admin/leads
+Accept: application/json

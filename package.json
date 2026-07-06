@@ -1,0 +1,29 @@
+{
+  "name": "duurzaam-woning-kompas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:e2e": "playwright test",
+    "test:launch": "node scripts/run-launch-check.mjs",
+    "test:production-email": "node scripts/run-production-email-smoke.mjs"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "@playwright/test": "^1.61.1",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "4.9.5",
+    "vite": "^8.1.3"
+  }
+}

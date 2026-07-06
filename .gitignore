@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.zip
+.env
+.env.*
+!.env.example
+bin/
+obj/
+**/bin/
+**/obj/
+TestResults/
+**/TestResults/
+test-results/
+playwright-report/
