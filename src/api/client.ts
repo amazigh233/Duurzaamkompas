@@ -3,11 +3,15 @@ import type {
   AdminLeadFilters,
   AdminLeadListItem,
   AdminLeadMetrics,
+  AdminDashboardResponse,
+  AdminAppointment,
+  AdminReportResponse,
   AdminSession,
   ApiErrorResponse,
   ContactMessageRequest,
   CreateLeadResponse,
   LeadStatus,
+  PagedLeadListResponse,
   TrackingData,
   WoningcheckAnswers,
 } from "../types";
@@ -60,8 +64,12 @@ function adminLeadParams(filters: AdminLeadFilters): URLSearchParams {
   if (filters.status) params.set("status", filters.status);
   if (filters.product) params.set("product", filters.product);
   if (filters.source.trim()) params.set("source", filters.source.trim());
+  if (filters.campaign.trim()) params.set("campaign", filters.campaign.trim());
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
+  params.set("sort", filters.sort);
+  params.set("page", filters.page.toString());
+  params.set("pageSize", filters.pageSize.toString());
 
   return params;
 }
@@ -87,16 +95,27 @@ export async function getAdminSession(): Promise<AdminSession> {
   });
 }
 
-export async function getAdminLeads(filters: AdminLeadFilters): Promise<AdminLeadListItem[]> {
+export async function getAdminLeads(filters: AdminLeadFilters): Promise<PagedLeadListResponse> {
   const params = adminLeadParams(filters);
-  return request<AdminLeadListItem[]>(`/api/admin/leads?${params.toString()}`, {
+  return request<PagedLeadListResponse>(`/api/admin/leads?${params.toString()}`, {
     credentials: "include",
   });
 }
 
-export async function getAdminLeadMetrics(filters: AdminLeadFilters): Promise<AdminLeadMetrics> {
-  const params = adminLeadParams(filters);
-  return request<AdminLeadMetrics>(`/api/admin/leads/metrics?${params.toString()}`, {
+export async function getAdminLeadMetrics(): Promise<AdminLeadMetrics> {
+  return request<AdminLeadMetrics>("/api/admin/leads/metrics", {
+    credentials: "include",
+  });
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
+  return request<AdminDashboardResponse>("/api/admin/leads/dashboard", {
+    credentials: "include",
+  });
+}
+
+export async function getAdminReport(): Promise<AdminReportResponse> {
+  return request<AdminReportResponse>("/api/admin/leads/report", {
     credentials: "include",
   });
 }
@@ -124,6 +143,48 @@ export async function addAdminLeadNote(id: string, text: string): Promise<AdminL
     method: "POST",
     credentials: "include",
     body: JSON.stringify({ text }),
+  });
+}
+
+export async function updateAdminLeadFollowUp(
+  id: string,
+  nextFollowUpAt: string | null,
+  note: string
+): Promise<AdminLeadDetail> {
+  return request<AdminLeadDetail>(`/api/admin/leads/${id}/follow-up`, {
+    method: "PATCH",
+    credentials: "include",
+    body: JSON.stringify({ nextFollowUpAt, note: note.trim() || undefined }),
+  });
+}
+
+export async function addAdminLeadAppointment(
+  id: string,
+  startAt: string,
+  endAt: string,
+  type: string,
+  notes: string
+): Promise<AdminLeadDetail> {
+  return request<AdminLeadDetail>(`/api/admin/leads/${id}/appointments`, {
+    method: "POST",
+    credentials: "include",
+    body: JSON.stringify({
+      startAt,
+      endAt: endAt || undefined,
+      type: type.trim() || undefined,
+      status: "Scheduled",
+      notes: notes.trim() || undefined,
+    }),
+  });
+}
+
+export async function getAdminAppointments(from?: string, to?: string): Promise<AdminAppointment[]> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+
+  return request<AdminAppointment[]>(`/api/admin/appointments?${params.toString()}`, {
+    credentials: "include",
   });
 }
 

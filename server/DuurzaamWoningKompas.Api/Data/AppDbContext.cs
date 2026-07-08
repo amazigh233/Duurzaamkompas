@@ -13,6 +13,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<LeadSource> LeadSources => Set<LeadSource>();
     public DbSet<LeadStatusHistory> LeadStatusHistory => Set<LeadStatusHistory>();
     public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,11 +32,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(lead => lead.Phone).HasMaxLength(40);
             entity.Property(lead => lead.PrimaryGoal).HasMaxLength(120).IsRequired();
             entity.Property(lead => lead.DesiredStartTerm).HasMaxLength(80).IsRequired();
+            entity.Property(lead => lead.FollowUpNote).HasMaxLength(300);
             entity.HasIndex(lead => lead.Status);
             entity.HasIndex(lead => lead.SubmissionId).IsUnique();
             entity.HasIndex(lead => lead.ProductInterest);
             entity.HasIndex(lead => lead.CreatedAt);
             entity.HasIndex(lead => lead.Email);
+            entity.HasIndex(lead => lead.LastContactAt);
+            entity.HasIndex(lead => lead.NextFollowUpAt);
 
             entity.HasOne(lead => lead.Property).WithOne().HasForeignKey<LeadProperty>(property => property.LeadId);
             entity.HasOne(lead => lead.EnergyProfile).WithOne().HasForeignKey<EnergyProfile>(profile => profile.LeadId);
@@ -44,6 +48,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasMany(lead => lead.ConsentRecords).WithOne().HasForeignKey(consent => consent.LeadId);
             entity.HasMany(lead => lead.StatusHistory).WithOne().HasForeignKey(history => history.LeadId);
             entity.HasMany(lead => lead.Notes).WithOne().HasForeignKey(note => note.LeadId);
+            entity.HasMany(lead => lead.Appointments).WithOne(appointment => appointment.Lead).HasForeignKey(appointment => appointment.LeadId);
         });
 
         modelBuilder.Entity<LeadProperty>(entity =>
@@ -107,6 +112,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.ToTable("lead_notes");
             entity.Property(note => note.Text).HasMaxLength(2000).IsRequired();
             entity.Property(note => note.Actor).HasMaxLength(120).IsRequired();
+        });
+
+        modelBuilder.Entity<Appointment>(entity =>
+        {
+            entity.ToTable("appointments");
+            entity.HasKey(appointment => appointment.Id);
+            entity.Property(appointment => appointment.Type).HasMaxLength(80).IsRequired();
+            entity.Property(appointment => appointment.Status).HasMaxLength(60).IsRequired();
+            entity.Property(appointment => appointment.Notes).HasMaxLength(1000);
+            entity.HasIndex(appointment => appointment.LeadId);
+            entity.HasIndex(appointment => appointment.StartAt);
+            entity.HasIndex(appointment => appointment.Status);
         });
     }
 }

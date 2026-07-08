@@ -142,13 +142,17 @@ public sealed class OpenApiController : ControllerBase
                             QueryParameter("query", "Vrij zoeken op naam, e-mail, postcode of doel."),
                             QueryParameter("status", "Filter op leadstatus.", "LeadStatus"),
                             QueryParameter("product", "Filter op productinteresse.", "ProductCategory"),
-                            QueryParameter("source", "Filter op UTM-bron, medium of campagne."),
+                            QueryParameter("source", "Filter op UTM-bron, medium of referrer."),
+                            QueryParameter("campaign", "Filter op UTM-campagne."),
                             QueryParameter("from", "Filter vanaf datum.", "date"),
-                            QueryParameter("to", "Filter tot en met datum.", "date")
+                            QueryParameter("to", "Filter tot en met datum.", "date"),
+                            QueryParameter("sort", "Sorteeroptie.", "LeadSortOption"),
+                            QueryParameter("page", "Paginanummer.", "integer"),
+                            QueryParameter("pageSize", "Aantal per pagina.", "integer")
                         },
                         responses = new Dictionary<string, object>
                         {
-                            ["200"] = ArrayJsonResponse("Leadlijst", "LeadListItemResponse"),
+                            ["200"] = JsonResponse("Gepagineerde leadlijst", "PagedLeadListResponse"),
                             ["401"] = JsonResponse("Geen geldige admin-toegang", "ApiError")
                         }
                     }
@@ -159,18 +163,35 @@ public sealed class OpenApiController : ControllerBase
                     {
                         summary = "Bekijk dashboard-kerncijfers voor leads",
                         security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
-                        parameters = new object[]
-                        {
-                            QueryParameter("query", "Vrij zoeken op naam, telefoon, e-mail, postcode of doel."),
-                            QueryParameter("status", "Filter op leadstatus.", "LeadStatus"),
-                            QueryParameter("product", "Filter op productinteresse.", "ProductCategory"),
-                            QueryParameter("source", "Filter op UTM-bron, medium of campagne."),
-                            QueryParameter("from", "Filter vanaf datum.", "date"),
-                            QueryParameter("to", "Filter tot en met datum.", "date")
-                        },
                         responses = new Dictionary<string, object>
                         {
                             ["200"] = JsonResponse("Dashboard-kerncijfers", "AdminLeadMetricsResponse"),
+                            ["401"] = JsonResponse("Geen geldige admin-toegang", "ApiError")
+                        }
+                    }
+                },
+                ["/api/admin/leads/dashboard"] = new
+                {
+                    get = new
+                    {
+                        summary = "Bekijk CRM dashboarddata",
+                        security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
+                        responses = new Dictionary<string, object>
+                        {
+                            ["200"] = JsonResponse("CRM dashboard", "AdminDashboardResponse"),
+                            ["401"] = JsonResponse("Geen geldige admin-toegang", "ApiError")
+                        }
+                    }
+                },
+                ["/api/admin/leads/report"] = new
+                {
+                    get = new
+                    {
+                        summary = "Bekijk CRM rapportage",
+                        security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
+                        responses = new Dictionary<string, object>
+                        {
+                            ["200"] = JsonResponse("CRM rapportage", "AdminReportResponse"),
                             ["401"] = JsonResponse("Geen geldige admin-toegang", "ApiError")
                         }
                     }
@@ -208,6 +229,25 @@ public sealed class OpenApiController : ControllerBase
                         }
                     }
                 },
+                ["/api/admin/leads/{id}/follow-up"] = new
+                {
+                    patch = new
+                    {
+                        summary = "Plan of wis leadopvolging",
+                        security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
+                        parameters = new[] { PathParameter("id", "Lead id.") },
+                        requestBody = new
+                        {
+                            required = true,
+                            content = JsonContent("UpdateLeadFollowUpRequest")
+                        },
+                        responses = new Dictionary<string, object>
+                        {
+                            ["200"] = JsonResponse("Follow-up bijgewerkt", "LeadDetailResponse"),
+                            ["404"] = JsonResponse("Lead niet gevonden", "ApiError")
+                        }
+                    }
+                },
                 ["/api/admin/leads/{id}/notes"] = new
                 {
                     post = new
@@ -224,6 +264,43 @@ public sealed class OpenApiController : ControllerBase
                         {
                             ["201"] = JsonResponse("Notitie toegevoegd", "LeadDetailResponse"),
                             ["400"] = JsonResponse("Validatiefout", "ApiError")
+                        }
+                    }
+                },
+                ["/api/admin/leads/{id}/appointments"] = new
+                {
+                    post = new
+                    {
+                        summary = "Plan een afspraak voor een lead",
+                        security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
+                        parameters = new[] { PathParameter("id", "Lead id.") },
+                        requestBody = new
+                        {
+                            required = true,
+                            content = JsonContent("CreateAppointmentRequest")
+                        },
+                        responses = new Dictionary<string, object>
+                        {
+                            ["201"] = JsonResponse("Afspraak gepland", "LeadDetailResponse"),
+                            ["400"] = JsonResponse("Validatiefout", "ApiError")
+                        }
+                    }
+                },
+                ["/api/admin/appointments"] = new
+                {
+                    get = new
+                    {
+                        summary = "Bekijk interne afspraken",
+                        security = new[] { new Dictionary<string, string[]> { ["AdminCookie"] = [] } },
+                        parameters = new object[]
+                        {
+                            QueryParameter("from", "Vanaf datum/tijd.", "date"),
+                            QueryParameter("to", "Tot datum/tijd.", "date")
+                        },
+                        responses = new Dictionary<string, object>
+                        {
+                            ["200"] = ArrayJsonResponse("Afspraken", "AppointmentResponse"),
+                            ["401"] = JsonResponse("Geen geldige admin-toegang", "ApiError")
                         }
                     }
                 }
@@ -256,6 +333,7 @@ public sealed class OpenApiController : ControllerBase
                         ["username"] = StringSchema()
                     }),
                     ["LeadStatus"] = EnumSchema(["New", "Contacted", "AppointmentScheduled", "QuoteCreated", "Won", "Lost"]),
+                    ["LeadSortOption"] = EnumSchema(["Newest", "Oldest", "LastContact", "NextFollowUp"]),
                     ["ProductCategory"] = EnumSchema(["General", "Thuisbatterij", "Warmtepomp", "Isolatie", "Zonnepanelen", "Laadpaal", "Airconditioning", "Energieadvies"]),
                     ["CreateLeadRequest"] = ObjectSchema(new Dictionary<string, object>
                     {
@@ -328,8 +406,19 @@ public sealed class OpenApiController : ControllerBase
                         ["primaryGoal"] = StringSchema(),
                         ["desiredStartTerm"] = StringSchema(),
                         ["utmSource"] = StringSchema(),
+                        ["utmMedium"] = StringSchema(),
                         ["utmCampaign"] = StringSchema(),
+                        ["lastContactAt"] = StringSchema("date-time"),
+                        ["nextFollowUpAt"] = StringSchema("date-time"),
+                        ["followUpNote"] = StringSchema(),
                         ["createdAt"] = StringSchema("date-time")
+                    }),
+                    ["PagedLeadListResponse"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["items"] = ArraySchema(RefSchema("LeadListItemResponse")),
+                        ["total"] = IntegerSchema(),
+                        ["page"] = IntegerSchema(),
+                        ["pageSize"] = IntegerSchema()
                     }),
                     ["LeadDetailResponse"] = ObjectSchema(new Dictionary<string, object>
                     {
@@ -341,6 +430,9 @@ public sealed class OpenApiController : ControllerBase
                         ["phone"] = StringSchema(),
                         ["primaryGoal"] = StringSchema(),
                         ["desiredStartTerm"] = StringSchema(),
+                        ["lastContactAt"] = StringSchema("date-time"),
+                        ["nextFollowUpAt"] = StringSchema("date-time"),
+                        ["followUpNote"] = StringSchema(),
                         ["createdAt"] = StringSchema("date-time"),
                         ["updatedAt"] = StringSchema("date-time"),
                         ["property"] = ObjectSchema(new Dictionary<string, object>()),
@@ -349,22 +441,79 @@ public sealed class OpenApiController : ControllerBase
                         ["consentRecords"] = ArraySchema(ObjectSchema(new Dictionary<string, object>())),
                         ["source"] = RefSchema("TrackingRequest"),
                         ["statusHistory"] = ArraySchema(ObjectSchema(new Dictionary<string, object>())),
-                        ["notes"] = ArraySchema(ObjectSchema(new Dictionary<string, object>()))
+                        ["notes"] = ArraySchema(ObjectSchema(new Dictionary<string, object>())),
+                        ["appointments"] = ArraySchema(RefSchema("AppointmentResponse"))
                     }),
                     ["AdminLeadMetricsResponse"] = ObjectSchema(new Dictionary<string, object>
                     {
                         ["newLeads"] = IntegerSchema(),
                         ["leadsToday"] = IntegerSchema(),
+                        ["leadsThisWeek"] = IntegerSchema(),
+                        ["activeLeads"] = IntegerSchema(),
+                        ["toCall"] = IntegerSchema(),
                         ["contactRate"] = NumberSchema(),
                         ["appointments"] = IntegerSchema(),
                         ["quotes"] = IntegerSchema(),
                         ["won"] = IntegerSchema(),
+                        ["lost"] = IntegerSchema(),
                         ["wonConversionRate"] = NumberSchema()
+                    }),
+                    ["DashboardBucketResponse"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["label"] = StringSchema(),
+                        ["count"] = IntegerSchema()
+                    }),
+                    ["AdminDashboardResponse"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["metrics"] = RefSchema("AdminLeadMetricsResponse"),
+                        ["recentLeads"] = ArraySchema(RefSchema("LeadListItemResponse")),
+                        ["leadsPerStatus"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerSource"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["openFollowUps"] = ArraySchema(RefSchema("LeadListItemResponse"))
+                    }),
+                    ["AdminReportResponse"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["leadsPerDay"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerWeek"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerMonth"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerProduct"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerSource"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["leadsPerCampaign"] = ArraySchema(RefSchema("DashboardBucketResponse")),
+                        ["appointments"] = IntegerSchema(),
+                        ["quotes"] = IntegerSchema(),
+                        ["won"] = IntegerSchema(),
+                        ["lost"] = IntegerSchema(),
+                        ["conversionRate"] = NumberSchema()
+                    }),
+                    ["AppointmentResponse"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["id"] = StringSchema("uuid"),
+                        ["leadId"] = StringSchema("uuid"),
+                        ["leadName"] = StringSchema(),
+                        ["productInterest"] = RefSchema("ProductCategory"),
+                        ["startAt"] = StringSchema("date-time"),
+                        ["endAt"] = StringSchema("date-time"),
+                        ["type"] = StringSchema(),
+                        ["status"] = StringSchema(),
+                        ["notes"] = StringSchema()
                     }),
                     ["UpdateLeadStatusRequest"] = ObjectSchema(new Dictionary<string, object>
                     {
                         ["status"] = RefSchema("LeadStatus"),
                         ["note"] = StringSchema()
+                    }),
+                    ["UpdateLeadFollowUpRequest"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["nextFollowUpAt"] = StringSchema("date-time"),
+                        ["note"] = StringSchema()
+                    }),
+                    ["CreateAppointmentRequest"] = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["startAt"] = StringSchema("date-time"),
+                        ["endAt"] = StringSchema("date-time"),
+                        ["type"] = StringSchema(),
+                        ["status"] = StringSchema(),
+                        ["notes"] = StringSchema()
                     }),
                     ["AddLeadNoteRequest"] = ObjectSchema(new Dictionary<string, object>
                     {
@@ -421,6 +570,7 @@ public sealed class OpenApiController : ControllerBase
         {
             null => StringSchema(),
             "date" => StringSchema("date"),
+            "integer" => IntegerSchema(),
             _ => RefSchema(schemaName)
         };
 

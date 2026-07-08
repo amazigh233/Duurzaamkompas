@@ -18,7 +18,7 @@ import { getTrackingData, trackAnalyticsEvent, trackLeadSubmittedOnce } from "..
 import { getSubmissionId, markSubmissionCompleted, readCompletedLead, resetSubmission } from "../lib/submission";
 import type { AdviceResult, CreateLeadResponse, WoningcheckAnswers } from "../types";
 
-const lastInputStep = 10;
+const lastInputStep = 5;
 const submissionStorageKey = `${STORAGE_KEY}_submission`;
 
 function readDraft(): { step: number; answers: WoningcheckAnswers } {
@@ -26,13 +26,25 @@ function readDraft(): { step: number; answers: WoningcheckAnswers } {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { step: 0, answers: emptyAnswers };
     const parsed = JSON.parse(raw) as Partial<{ step: number; answers: WoningcheckAnswers }>;
+    const answers = { ...emptyAnswers, ...parsed.answers, consent: { ...emptyAnswers.consent, ...parsed.answers?.consent } };
+    const requestedStep = typeof parsed.step === "number" ? Math.min(parsed.step, lastInputStep) : 0;
     return {
-      step: typeof parsed.step === "number" ? Math.min(parsed.step, lastInputStep) : 0,
-      answers: { ...emptyAnswers, ...parsed.answers, consent: { ...emptyAnswers.consent, ...parsed.answers?.consent } },
+      step: Math.min(requestedStep, firstIncompleteStep(answers)),
+      answers,
     };
   } catch {
     return { step: 0, answers: emptyAnswers };
   }
+}
+
+function firstIncompleteStep(answers: WoningcheckAnswers): number {
+  if (!answers.woningtype || !answers.bouwjaar) return 0;
+  if (!answers.zonnepanelen) return 1;
+  if (answers.interesses.length === 0 || !answers.hoofddoel || !answers.starttermijn) return 2;
+  if (!answers.postcode || !answers.huisnummer || !/^[1-9][0-9]{3}\s?[A-Z]{2}$/i.test(answers.postcode)) return 3;
+  if (!answers.naam || !answers.email || !/^\S+@\S+\.\S+$/.test(answers.email)) return 4;
+  if (!answers.consent.adviceConsent) return 5;
+  return lastInputStep;
 }
 
 export function Woningcheck() {
@@ -100,21 +112,19 @@ export function Woningcheck() {
 
   const validationMessage = () => {
     if (step === 0 && !answers.woningtype) return "Kies uw woningtype.";
-    if (step === 1 && !answers.bouwjaar) return "Kies een bouwjaarperiode.";
-    if (step === 2 && !answers.zonnepanelen) return "Geef aan of de woning zonnepanelen heeft.";
-    if (step === 3 && preparedAnswers.stroomverbruik === undefined) return "Vul een indicatie van het stroomverbruik in.";
-    if (step === 4 && preparedAnswers.gasverbruik === undefined) return "Vul een indicatie van het gasverbruik in.";
-    if (step === 5 && answers.interesses.length === 0) return "Kies minimaal een interessegebied.";
-    if (step === 6 && !answers.hoofddoel) return "Kies uw belangrijkste doel.";
-    if (step === 7 && !answers.starttermijn) return "Kies wanneer u mogelijk wilt starten.";
-    if (step === 8 && (!answers.postcode || !answers.huisnummer)) return "Vul postcode en huisnummer in.";
-    if (step === 8 && !/^[1-9][0-9]{3}\s?[A-Z]{2}$/i.test(answers.postcode ?? "")) {
+    if (step === 0 && !answers.bouwjaar) return "Kies een bouwjaarperiode.";
+    if (step === 1 && !answers.zonnepanelen) return "Geef aan of de woning zonnepanelen heeft.";
+    if (step === 2 && answers.interesses.length === 0) return "Kies minimaal een interessegebied.";
+    if (step === 2 && !answers.hoofddoel) return "Kies uw belangrijkste doel.";
+    if (step === 2 && !answers.starttermijn) return "Kies wanneer u mogelijk wilt starten.";
+    if (step === 3 && (!answers.postcode || !answers.huisnummer)) return "Vul postcode en huisnummer in.";
+    if (step === 3 && !/^[1-9][0-9]{3}\s?[A-Z]{2}$/i.test(answers.postcode ?? "")) {
       return "Vul een geldige Nederlandse postcode in.";
     }
-    if (step === 9 && !answers.naam) return "Vul uw naam in.";
-    if (step === 9 && !answers.email) return "Vul uw e-mailadres in.";
-    if (step === 9 && !/^\S+@\S+\.\S+$/.test(answers.email ?? "")) return "Vul een geldig e-mailadres in.";
-    if (step === 10 && !answers.consent.adviceConsent) return "Geef toestemming om uw woningadvies te ontvangen.";
+    if (step === 4 && !answers.naam) return "Vul uw naam in.";
+    if (step === 4 && !answers.email) return "Vul uw e-mailadres in.";
+    if (step === 4 && !/^\S+@\S+\.\S+$/.test(answers.email ?? "")) return "Vul een geldig e-mailadres in.";
+    if (step === 5 && !answers.consent.adviceConsent) return "Geef toestemming om uw woningadvies te ontvangen.";
     return "";
   };
 
@@ -213,87 +223,18 @@ export function Woningcheck() {
                   </figcaption>
                 </figure>
               ) : null}
-              {step === 0 && (
-                <ChoiceStep
-                  title="Wat voor woning heeft u?"
-                  description="Kies het type dat het dichtst bij uw situatie ligt."
-                  options={woningtypes}
-                  value={answers.woningtype}
-                  onPick={(value) => patch({ woningtype: value })}
-                />
-              )}
-              {step === 1 && (
-                <ChoiceStep
-                  title="Wat is ongeveer het bouwjaar?"
-                  description="Het bouwjaar zegt veel over isolatie en installaties."
-                  options={bouwjaren}
-                  value={answers.bouwjaar}
-                  onPick={(value) => patch({ bouwjaar: value })}
-                />
-              )}
+              {step === 0 && <HomeStep answers={answers} onChange={(partial) => patch(partial)} />}
+              {step === 1 && <EnergyStep answers={preparedAnswers} onChange={(partial) => patch(partial)} />}
               {step === 2 && (
-                <ChoiceStep
-                  title="Heeft de woning zonnepanelen?"
-                  description="Dit bepaalt of opslag en slim energiegebruik interessant kunnen zijn."
-                  options={zonnepanelenOpties}
-                  value={answers.zonnepanelen}
-                  onPick={(value) => patch({ zonnepanelen: value })}
+                <GoalStep
+                  answers={answers}
+                  onChange={(partial) => patch(partial)}
+                  onToggleInterest={toggleInterest}
                 />
               )}
-              {step === 3 && (
-                <RangeStep
-                  title="Wat is ongeveer het jaarlijkse stroomverbruik?"
-                  description="Een schatting is voldoende voor deze eerste indicatie."
-                  value={preparedAnswers.stroomverbruik ?? 3000}
-                  min={1000}
-                  max={7000}
-                  step={100}
-                  unit="kWh"
-                  onChange={(value) => patch({ stroomverbruik: value })}
-                />
-              )}
-              {step === 4 && (
-                <RangeStep
-                  title="Wat is ongeveer het jaarlijkse gasverbruik?"
-                  description="Volledig elektrisch? Zet de schuif op 0."
-                  value={preparedAnswers.gasverbruik ?? 1200}
-                  min={0}
-                  max={3500}
-                  step={50}
-                  unit="m3"
-                  onChange={(value) => patch({ gasverbruik: value })}
-                />
-              )}
-              {step === 5 && (
-                <MultiStep
-                  title="Welke oplossingen interesseren u?"
-                  description="Meerdere antwoorden mogelijk. Nog geen idee? Dat mag ook."
-                  options={interesses}
-                  values={answers.interesses}
-                  onToggle={toggleInterest}
-                />
-              )}
-              {step === 6 && (
-                <ChoiceStep
-                  title="Wat is uw belangrijkste doel?"
-                  description="Dit helpt om de volgorde van maatregelen rustig en logisch te maken."
-                  options={hoofddoelen}
-                  value={answers.hoofddoel}
-                  onPick={(value) => patch({ hoofddoel: value })}
-                />
-              )}
-              {step === 7 && (
-                <ChoiceStep
-                  title="Wanneer wilt u mogelijk starten?"
-                  description="Dit helpt om de vervolgstap realistisch te maken. U zit nergens aan vast."
-                  options={starttermijnen}
-                  value={answers.starttermijn}
-                  onPick={(value) => patch({ starttermijn: value })}
-                />
-              )}
-              {step === 8 && <AddressStep answers={answers} onChange={(partial) => patch(partial)} />}
-              {step === 9 && <ContactStep answers={answers} onChange={(partial) => patch(partial)} />}
-              {step === 10 && <ConsentStep answers={answers} onConsent={setConsent} />}
+              {step === 3 && <AddressStep answers={answers} onChange={(partial) => patch(partial)} />}
+              {step === 4 && <ContactStep answers={answers} onChange={(partial) => patch(partial)} />}
+              {step === 5 && <ConsentStep answers={answers} onConsent={setConsent} />}
               {error ? (
                 <div className="form-error" role="alert">
                   <p>{error}</p>
@@ -335,63 +276,180 @@ export function Woningcheck() {
   );
 }
 
-function ChoiceStep({
-  title,
-  description,
+function HomeStep({
+  answers,
+  onChange,
+}: {
+  answers: WoningcheckAnswers;
+  onChange: (partial: Partial<WoningcheckAnswers>) => void;
+}) {
+  return (
+    <>
+      <h1>Over uw woning</h1>
+      <p>Kies het woningtype en bouwjaar dat het dichtst bij uw situatie ligt.</p>
+      <div className="combined-step">
+        <section className="step-group">
+          <h2>Wat voor woning heeft u?</h2>
+          <ChoiceGroup
+            options={woningtypes}
+            value={answers.woningtype}
+            onPick={(value) => onChange({ woningtype: value })}
+          />
+        </section>
+        <section className="step-group">
+          <h2>Wat is ongeveer het bouwjaar?</h2>
+          <p>Het bouwjaar zegt veel over isolatie en installaties.</p>
+          <ChoiceGroup
+            options={bouwjaren}
+            value={answers.bouwjaar}
+            onPick={(value) => onChange({ bouwjaar: value })}
+          />
+        </section>
+      </div>
+    </>
+  );
+}
+
+function EnergyStep({
+  answers,
+  onChange,
+}: {
+  answers: WoningcheckAnswers;
+  onChange: (partial: Partial<WoningcheckAnswers>) => void;
+}) {
+  return (
+    <>
+      <h1>Uw energieprofiel</h1>
+      <p>Weet u het niet precies? Een schatting is voldoende voor deze eerste indicatie.</p>
+      <div className="combined-step">
+        <section className="step-group">
+          <h2>Heeft de woning zonnepanelen?</h2>
+          <ChoiceGroup
+            options={zonnepanelenOpties}
+            value={answers.zonnepanelen}
+            onPick={(value) => onChange({ zonnepanelen: value })}
+          />
+        </section>
+        <section className="step-group">
+          <RangeControl
+            title="Jaarlijks stroomverbruik"
+            description="Gebruik gerust een gemiddelde als u het exacte verbruik niet weet."
+            value={answers.stroomverbruik ?? 3000}
+            min={1000}
+            max={7000}
+            step={100}
+            unit="kWh"
+            onChange={(value) => onChange({ stroomverbruik: value })}
+          />
+        </section>
+        <section className="step-group">
+          <RangeControl
+            title="Jaarlijks gasverbruik"
+            description="Volledig elektrisch? Zet de schuif op 0."
+            value={answers.gasverbruik ?? 1200}
+            min={0}
+            max={3500}
+            step={50}
+            unit="m3"
+            onChange={(value) => onChange({ gasverbruik: value })}
+          />
+        </section>
+      </div>
+    </>
+  );
+}
+
+function GoalStep({
+  answers,
+  onChange,
+  onToggleInterest,
+}: {
+  answers: WoningcheckAnswers;
+  onChange: (partial: Partial<WoningcheckAnswers>) => void;
+  onToggleInterest: (value: string) => void;
+}) {
+  return (
+    <>
+      <h1>Wat wilt u bereiken?</h1>
+      <p>Deze keuzes helpen om de vervolgstap rustig en logisch te maken. U zit nergens aan vast.</p>
+      <div className="combined-step">
+        <section className="step-group">
+          <h2>Welke oplossingen interesseren u?</h2>
+          <p>Meerdere antwoorden mogelijk. Nog geen idee? Dat mag ook.</p>
+          <MultiChoiceGroup options={interesses} values={answers.interesses} onToggle={onToggleInterest} />
+        </section>
+        <section className="step-group">
+          <h2>Wat is uw belangrijkste doel?</h2>
+          <ChoiceGroup
+            options={hoofddoelen}
+            value={answers.hoofddoel}
+            onPick={(value) => onChange({ hoofddoel: value })}
+          />
+        </section>
+        <section className="step-group">
+          <h2>Wanneer wilt u mogelijk starten?</h2>
+          <ChoiceGroup
+            options={starttermijnen}
+            value={answers.starttermijn}
+            onPick={(value) => onChange({ starttermijn: value })}
+          />
+        </section>
+      </div>
+    </>
+  );
+}
+
+function ChoiceGroup({
   options,
   value,
   onPick,
 }: {
-  title: string;
-  description: string;
   options: string[];
   value?: string;
   onPick: (value: string) => void;
 }) {
   return (
-    <>
-      <h1>{title}</h1>
-      <p>{description}</p>
-      <div className="choice-grid">
-        {options.map((option) => (
-          <button key={option} className={option === value ? "choice-card is-selected" : "choice-card"} type="button" onClick={() => onPick(option)}>
-            {option}
-          </button>
-        ))}
-      </div>
-    </>
+    <div className="choice-grid">
+      {options.map((option) => (
+        <button
+          key={option}
+          className={option === value ? "choice-card is-selected" : "choice-card"}
+          type="button"
+          onClick={() => onPick(option)}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
   );
 }
 
-function MultiStep({
-  title,
-  description,
+function MultiChoiceGroup({
   options,
   values,
   onToggle,
 }: {
-  title: string;
-  description: string;
   options: string[];
   values: string[];
   onToggle: (value: string) => void;
 }) {
   return (
-    <>
-      <h1>{title}</h1>
-      <p>{description}</p>
-      <div className="choice-grid two-col">
-        {options.map((option) => (
-          <button key={option} className={values.includes(option) ? "choice-card is-selected" : "choice-card"} type="button" onClick={() => onToggle(option)}>
-            {option}
-          </button>
-        ))}
-      </div>
-    </>
+    <div className="choice-grid two-col">
+      {options.map((option) => (
+        <button
+          key={option}
+          className={values.includes(option) ? "choice-card is-selected" : "choice-card"}
+          type="button"
+          onClick={() => onToggle(option)}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
   );
 }
 
-function RangeStep({
+function RangeControl({
   title,
   description,
   value,
@@ -412,7 +470,7 @@ function RangeStep({
 }) {
   return (
     <>
-      <h1>{title}</h1>
+      <h2>{title}</h2>
       <p>{description}</p>
       <div className="range-box">
         <strong>

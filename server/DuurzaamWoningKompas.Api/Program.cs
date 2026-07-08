@@ -1,8 +1,8 @@
 using DuurzaamWoningKompas.Api.Data;
-using DuurzaamWoningKompas.Api.Security;
 using DuurzaamWoningKompas.Api.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,6 +47,29 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return Task.CompletedTask;
         };
     });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { code = "RATE_LIMITED", message = "Te veel inlogpogingen. Probeer het later opnieuw." },
+            cancellationToken);
+    };
+    options.AddPolicy("AdminLogin", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0
+            }));
+});
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -57,7 +80,6 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql => npgsql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 builder.Services.AddScoped<LeadValidationService>();
-builder.Services.AddScoped<AdminApiKeyFilter>();
 builder.Services.Configure<AdminAuthOptions>(builder.Configuration.GetSection("Admin"));
 builder.Services.Configure<LeadNotificationOptions>(builder.Configuration.GetSection("Notifications"));
 builder.Services.PostConfigure<LeadNotificationOptions>(options =>
@@ -74,6 +96,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseCors("Frontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));

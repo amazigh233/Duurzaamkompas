@@ -11,6 +11,9 @@ public sealed class Lead
     public string? Phone { get; set; }
     public string PrimaryGoal { get; set; } = string.Empty;
     public string DesiredStartTerm { get; set; } = string.Empty;
+    public DateTimeOffset? LastContactAt { get; set; }
+    public DateTimeOffset? NextFollowUpAt { get; set; }
+    public string? FollowUpNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -21,4 +24,5 @@ public sealed class Lead
     public ICollection<ConsentRecord> ConsentRecords { get; set; } = new List<ConsentRecord>();
     public ICollection<LeadStatusHistory> StatusHistory { get; set; } = new List<LeadStatusHistory>();
     public ICollection<LeadNote> Notes { get; set; } = new List<LeadNote>();
+    public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 }

@@ -15,8 +15,18 @@ public sealed record LeadListItemResponse(
     string PrimaryGoal,
     string DesiredStartTerm,
     string? UtmSource,
+    string? UtmMedium,
     string? UtmCampaign,
+    DateTimeOffset? LastContactAt,
+    DateTimeOffset? NextFollowUpAt,
+    string? FollowUpNote,
     DateTimeOffset CreatedAt);
+
+public sealed record PagedLeadListResponse(
+    LeadListItemResponse[] Items,
+    int Total,
+    int Page,
+    int PageSize);
 
 public sealed record LeadDetailResponse(
     Guid Id,
@@ -27,6 +37,9 @@ public sealed record LeadDetailResponse(
     string? Phone,
     string PrimaryGoal,
     string DesiredStartTerm,
+    DateTimeOffset? LastContactAt,
+    DateTimeOffset? NextFollowUpAt,
+    string? FollowUpNote,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     PropertyResponse Property,
@@ -35,7 +48,8 @@ public sealed record LeadDetailResponse(
     ConsentResponse[] ConsentRecords,
     LeadSourceResponse Source,
     StatusHistoryResponse[] StatusHistory,
-    LeadNoteResponse[] Notes);
+    LeadNoteResponse[] Notes,
+    AppointmentResponse[] Appointments);
 
 public sealed record PropertyResponse(
     string HomeType,
@@ -72,10 +86,14 @@ public sealed record LeadSourceResponse(
 public sealed record AdminLeadMetricsResponse(
     int NewLeads,
     int LeadsToday,
+    int LeadsThisWeek,
+    int ActiveLeads,
+    int ToCall,
     decimal? ContactRate,
     int Appointments,
     int Quotes,
     int Won,
+    int Lost,
     decimal? WonConversionRate);
 
 public sealed record StatusHistoryResponse(
@@ -86,3 +104,36 @@ public sealed record StatusHistoryResponse(
     DateTimeOffset CreatedAt);
 
 public sealed record LeadNoteResponse(Guid Id, string Text, string Actor, DateTimeOffset CreatedAt);
+
+public sealed record DashboardBucketResponse(string Label, int Count);
+
+public sealed record AdminDashboardResponse(
+    AdminLeadMetricsResponse Metrics,
+    LeadListItemResponse[] RecentLeads,
+    DashboardBucketResponse[] LeadsPerStatus,
+    DashboardBucketResponse[] LeadsPerSource,
+    LeadListItemResponse[] OpenFollowUps);
+
+public sealed record AppointmentResponse(
+    Guid Id,
+    Guid LeadId,
+    string LeadName,
+    ProductCategory ProductInterest,
+    DateTimeOffset StartAt,
+    DateTimeOffset? EndAt,
+    string Type,
+    string Status,
+    string? Notes);
+
+public sealed record AdminReportResponse(
+    DashboardBucketResponse[] LeadsPerDay,
+    DashboardBucketResponse[] LeadsPerWeek,
+    DashboardBucketResponse[] LeadsPerMonth,
+    DashboardBucketResponse[] LeadsPerProduct,
+    DashboardBucketResponse[] LeadsPerSource,
+    DashboardBucketResponse[] LeadsPerCampaign,
+    int Appointments,
+    int Quotes,
+    int Won,
+    int Lost,
+    decimal? ConversionRate);

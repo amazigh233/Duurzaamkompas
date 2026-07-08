@@ -7,7 +7,9 @@ import { Icon } from "./components/Icon";
 import { SolutionCard } from "./components/SolutionCard";
 import { ThuisbatterijCheck } from "./components/ThuisbatterijCheck";
 import { Woningcheck } from "./components/Woningcheck";
+import { MaatregelenKompas } from "./components/MaatregelenKompas";
 import { AdminDashboard } from "./components/admin/AdminDashboard";
+import type { AdminPage } from "./components/admin/AdminDashboard";
 import { openCookiePreferences } from "./components/CookieConsent";
 import { siteConfig } from "./siteConfig";
 import type { KnowledgeArticle, RouteState, SolutionSlug } from "./types";
@@ -22,6 +24,7 @@ const publicRouteRoots = new Set([
   "",
   "woningcheck",
   "thuisbatterij-check",
+  "maatregelenkompas",
   "oplossingen",
   "hoe-werkt-het",
   "kennisbank",
@@ -42,9 +45,22 @@ function parseRoute(): RouteState {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
   const [first = "", second] = path.split("/");
 
+  if (first === "admin") {
+    if (!second || second === "dashboard") return { name: "admin-dashboard" };
+    if (second === "login") return { name: "admin-login" };
+    if (second === "leads") {
+      const [, , leadId] = path.split("/");
+      return leadId ? { name: "admin-lead-detail", leadId } : { name: "admin-leads" };
+    }
+    if (second === "calendar") return { name: "admin-calendar" };
+    if (second === "reporting") return { name: "admin-reporting" };
+    if (second === "settings") return { name: "admin-settings" };
+  }
+
   if (!first) return { name: "home" };
   if (first === "woningcheck" && !second) return { name: "woningcheck" };
   if (first === "thuisbatterij-check" && !second) return { name: "thuisbatterij-check" };
+  if (first === "maatregelenkompas" && !second) return { name: "maatregelenkompas" };
   if (first === "oplossingen" && second && solutionMap.has(second as SolutionSlug)) {
     return { name: "oplossing-detail", slug: second as SolutionSlug };
   }
@@ -70,9 +86,9 @@ function parseAdminHashRoute(): RouteState | null {
 
   if (first === "admin" && second === "leads") {
     const [, , leadId] = hash.split("/");
-    return leadId ? { name: "admin-lead-detail", leadId } : { name: "admin" };
+    return leadId ? { name: "admin-lead-detail", leadId } : { name: "admin-leads" };
   }
-  if (first === "admin") return { name: "admin" };
+  if (first === "admin") return { name: "admin-dashboard" };
 
   return null;
 }
@@ -190,6 +206,12 @@ function applySeo(route: RouteState) {
           title: `ThuisbatterijCheck | ${siteName}`,
           description: "Controleer of een thuisbatterij mogelijk bij uw zonnepanelen, verbruik en energiecontract past.",
         };
+      case "maatregelenkompas":
+        return {
+          title: `MaatregelenKompas | ${siteName}`,
+          description:
+            "Speel met een voorlopige verduurzamingsroute en ontdek welke maatregelen mogelijk interessant zijn zonder contactgegevens achter te laten.",
+        };
       case "oplossingen":
         return {
           title: `Oplossingen voor woningverduurzaming | ${siteName}`,
@@ -234,6 +256,18 @@ function applySeo(route: RouteState) {
         return {
           title: `Cookiebeleid | ${siteName}`,
           description: "Uitleg over noodzakelijke opslag, analytische cookies, marketingcookies en cookievoorkeuren.",
+        };
+      case "admin-login":
+      case "admin-dashboard":
+      case "admin-leads":
+      case "admin-lead-detail":
+      case "admin-calendar":
+      case "admin-reporting":
+      case "admin-settings":
+        return {
+          title: `Admin CRM | ${siteName}`,
+          description: "Afgeschermde interne CRM omgeving voor leadbeheer.",
+          noindex: true,
         };
       default:
         return {
@@ -299,6 +333,8 @@ export default function App() {
         return <Woningcheck />;
       case "thuisbatterij-check":
         return <ThuisbatterijCheck />;
+      case "maatregelenkompas":
+        return <MaatregelenKompas />;
       case "oplossingen":
         return <SolutionsPage />;
       case "oplossing-detail":
@@ -321,16 +357,43 @@ export default function App() {
         return <TermsPage />;
       case "cookiebeleid":
         return <CookiePolicyPage />;
-      case "admin":
-        return <AdminDashboard />;
+      case "admin-login":
+      case "admin-dashboard":
+      case "admin-leads":
       case "admin-lead-detail":
-        return <AdminDashboard leadId={route.leadId} />;
+      case "admin-calendar":
+      case "admin-reporting":
+      case "admin-settings":
+        return <AdminDashboard page={adminPageFromRoute(route.name)} leadId={route.leadId} />;
       default:
         return <NotFoundPage />;
     }
   }, [route]);
 
-  return <Layout>{page}</Layout>;
+  return isAdminRoute(route.name) ? page : <Layout>{page}</Layout>;
+}
+
+function isAdminRoute(name: RouteState["name"]) {
+  return name.startsWith("admin");
+}
+
+function adminPageFromRoute(name: RouteState["name"]): AdminPage {
+  switch (name) {
+    case "admin-login":
+      return "login";
+    case "admin-leads":
+      return "leads";
+    case "admin-lead-detail":
+      return "lead-detail";
+    case "admin-calendar":
+      return "calendar";
+    case "admin-reporting":
+      return "reporting";
+    case "admin-settings":
+      return "settings";
+    default:
+      return "dashboard";
+  }
 }
 
 function HomePage() {
@@ -397,6 +460,34 @@ function HomePage() {
             <h2>Zorgvuldig</h2>
             <p>Contact of matching gebeurt alleen met expliciete toestemming. Geen vooraf aangevinkte keuzes.</p>
           </article>
+        </div>
+      </section>
+
+      <section className="section maatregelen-preview-section">
+        <div className="container split-section">
+          <div>
+            <span className="section-kicker">MaatregelenKompas</span>
+            <h2>Probeer eerst rustig een mogelijke route</h2>
+            <p>
+              Speel met maximaal drie verduurzamingsmaatregelen en zet ze in de volgorde die voor u logisch voelt. U
+              laat geen contactgegevens achter en ziet meteen welke stap om extra uitleg vraagt.
+            </p>
+            <div className="button-row">
+              <a className="button button-primary" href="/maatregelenkompas">
+                Speel het MaatregelenKompas
+              </a>
+              <a className="button button-secondary" href="/woningcheck">
+                Start gratis woningcheck
+              </a>
+            </div>
+          </div>
+          <div className="preview-card maatregelen-preview-card">
+            <ol>
+              <li>Kies maximaal drie maatregelen</li>
+              <li>Zet uw route in volgorde</li>
+              <li>Lees wat nog beoordeeld moet worden</li>
+            </ol>
+          </div>
         </div>
       </section>
 

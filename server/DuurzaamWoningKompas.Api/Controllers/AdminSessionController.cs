@@ -6,13 +6,16 @@ using DuurzaamWoningKompas.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace DuurzaamWoningKompas.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/session")]
-public sealed class AdminSessionController(IOptions<AdminAuthOptions> options) : ControllerBase
+public sealed class AdminSessionController(
+    IOptions<AdminAuthOptions> options,
+    IHostEnvironment environment) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(AdminSessionResponse), StatusCodes.Status200OK)]
@@ -24,20 +27,23 @@ public sealed class AdminSessionController(IOptions<AdminAuthOptions> options) :
     }
 
     [HttpPost]
+    [EnableRateLimiting("AdminLogin")]
     [ProducesResponseType(typeof(AdminSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<AdminSessionResponse>> Login(AdminLoginRequest request)
     {
         var settings = options.Value;
-        if (string.IsNullOrWhiteSpace(settings.Username) || string.IsNullOrWhiteSpace(settings.Password))
+        if (string.IsNullOrWhiteSpace(settings.Username) ||
+            (string.IsNullOrWhiteSpace(settings.PasswordHash) &&
+                (!environment.IsDevelopment() || string.IsNullOrWhiteSpace(settings.Password))))
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new ApiError(
                 "ADMIN_AUTH_NOT_CONFIGURED",
                 "Admin-toegang is niet geconfigureerd."));
         }
 
-        if (!SecureEquals(request.Username, settings.Username) || !SecureEquals(request.Password, settings.Password))
+        if (!SecureEquals(request.Username, settings.Username) || !PasswordMatches(request.Password, settings))
         {
             return Unauthorized(new ApiError("UNAUTHORIZED", "Geen geldige admin-inloggegevens."));
         }
@@ -79,5 +85,22 @@ public sealed class AdminSessionController(IOptions<AdminAuthOptions> options) :
         var expectedBytes = Encoding.UTF8.GetBytes(expected);
         return providedBytes.Length == expectedBytes.Length &&
             CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
+    }
+
+    private bool PasswordMatches(string? providedPassword, AdminAuthOptions settings)
+    {
+        if (string.IsNullOrWhiteSpace(providedPassword))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.PasswordHash))
+        {
+            return AdminPasswordVerifier.Verify(providedPassword, settings.PasswordHash);
+        }
+
+        return environment.IsDevelopment() &&
+            !string.IsNullOrWhiteSpace(settings.Password) &&
+            SecureEquals(providedPassword, settings.Password);
     }
 }

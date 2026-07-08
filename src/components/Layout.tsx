@@ -95,6 +95,7 @@ function Footer() {
           <h2>Platform</h2>
           <a href="/woningcheck">Woningcheck</a>
           <a href="/thuisbatterij-check">ThuisbatterijCheck</a>
+          <a href="/maatregelenkompas">MaatregelenKompas</a>
           <a href="/oplossingen">Oplossingen</a>
           <a href="/hoe-werkt-het">Hoe werkt het?</a>
           <a href="/kennisbank">Kennisbank</a>

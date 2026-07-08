@@ -2,6 +2,7 @@ export type RouteName =
   | "home"
   | "woningcheck"
   | "thuisbatterij-check"
+  | "maatregelenkompas"
   | "oplossingen"
   | "oplossing-detail"
   | "hoe"
@@ -13,8 +14,13 @@ export type RouteName =
   | "privacy"
   | "algemene-voorwaarden"
   | "cookiebeleid"
-  | "admin"
+  | "admin-login"
+  | "admin-dashboard"
+  | "admin-leads"
   | "admin-lead-detail"
+  | "admin-calendar"
+  | "admin-reporting"
+  | "admin-settings"
   | "not-found";
 
 export type SolutionSlug =
@@ -145,12 +151,26 @@ export interface AdminLeadListItem {
   primaryGoal: string;
   desiredStartTerm: string;
   utmSource?: string | null;
+  utmMedium?: string | null;
   utmCampaign?: string | null;
+  lastContactAt?: string | null;
+  nextFollowUpAt?: string | null;
+  followUpNote?: string | null;
   createdAt: string;
+}
+
+export interface PagedLeadListResponse {
+  items: AdminLeadListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface AdminLeadDetail extends AdminLeadListItem {
   phone?: string;
+  lastContactAt?: string | null;
+  nextFollowUpAt?: string | null;
+  followUpNote?: string | null;
   updatedAt: string;
   property: {
     homeType: string;
@@ -189,6 +209,7 @@ export interface AdminLeadDetail extends AdminLeadListItem {
     actor: string;
     createdAt: string;
   }>;
+  appointments: AdminAppointment[];
 }
 
 export interface AdminLeadFilters {
@@ -196,16 +217,65 @@ export interface AdminLeadFilters {
   status: string;
   product: string;
   source: string;
+  campaign: string;
   from: string;
   to: string;
+  sort: LeadSortOption;
+  page: number;
+  pageSize: number;
 }
+
+export type LeadSortOption = "Newest" | "Oldest" | "LastContact" | "NextFollowUp";
 
 export interface AdminLeadMetrics {
   newLeads: number;
   leadsToday: number;
+  leadsThisWeek: number;
+  activeLeads: number;
+  toCall: number;
   contactRate?: number;
   appointments: number;
   quotes: number;
   won: number;
+  lost: number;
   wonConversionRate?: number;
+}
+
+export interface DashboardBucket {
+  label: string;
+  count: number;
+}
+
+export interface AdminDashboardResponse {
+  metrics: AdminLeadMetrics;
+  recentLeads: AdminLeadListItem[];
+  leadsPerStatus: DashboardBucket[];
+  leadsPerSource: DashboardBucket[];
+  openFollowUps: AdminLeadListItem[];
+}
+
+export interface AdminAppointment {
+  id: string;
+  leadId: string;
+  leadName: string;
+  productInterest: ProductCategory;
+  startAt: string;
+  endAt?: string | null;
+  type: string;
+  status: string;
+  notes?: string | null;
+}
+
+export interface AdminReportResponse {
+  leadsPerDay: DashboardBucket[];
+  leadsPerWeek: DashboardBucket[];
+  leadsPerMonth: DashboardBucket[];
+  leadsPerProduct: DashboardBucket[];
+  leadsPerSource: DashboardBucket[];
+  leadsPerCampaign: DashboardBucket[];
+  appointments: number;
+  quotes: number;
+  won: number;
+  lost: number;
+  conversionRate?: number | null;
 }

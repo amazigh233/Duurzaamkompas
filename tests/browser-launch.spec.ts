@@ -81,6 +81,7 @@ test("public pages use clean URL routes and legacy public hashes redirect", asyn
     { path: "/over-ons", heading: "Betere informatie, betere keuze, passende match" },
     { path: "/woningcheck", heading: "Wat voor woning heeft u?" },
     { path: "/thuisbatterij-check", heading: "Heeft u zonnepanelen?" },
+    { path: "/maatregelenkompas", heading: "Speel met uw verduurzamingsroute" },
     { path: "/contact", heading: "Heeft u een vraag?" },
     { path: "/partner-worden", heading: "Samenwerken rond zorgvuldige verduurzamingsvragen" },
     { path: "/privacy", heading: "Privacyverklaring" },
@@ -105,6 +106,32 @@ test("public pages use clean URL routes and legacy public hashes redirect", asyn
   await page.goto("/#/admin");
   await expect(page).toHaveURL(/\/#\/admin$/);
   await expect(page.getByRole("heading", { name: "Leadbeheer", level: 1 })).toBeVisible();
+});
+
+test("maatregelenkompas lets visitors choose, order, and remove a preliminary route", async ({ page }) => {
+  await page.goto("/maatregelenkompas");
+  await expect(page.getByRole("heading", { name: "Speel met uw verduurzamingsroute", level: 1 })).toBeVisible();
+  await expect(page.locator(".maatregelen-result").getByRole("link", { name: "Start gratis woningcheck" })).toHaveAttribute(
+    "href",
+    "/woningcheck"
+  );
+
+  await page.getByRole("button", { name: "Kies Isolatie" }).click();
+  await page.getByRole("button", { name: "Kies Warmtepomp" }).click();
+  await page.getByRole("button", { name: "Kies Zonnepanelen" }).click();
+
+  const routeItems = page.locator(".route-list li");
+  await expect(routeItems).toHaveCount(3);
+  await expect(routeItems.nth(0)).toContainText("Isolatie");
+  await expect(page.getByRole("button", { name: "Kies Laadpaal" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Warmtepomp omlaag" }).click();
+  await expect(routeItems.nth(1)).toContainText("Zonnepanelen");
+  await expect(routeItems.nth(2)).toContainText("Warmtepomp");
+
+  await page.getByRole("button", { name: "Verwijder Isolatie uit route" }).click();
+  await expect(routeItems).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Kies Laadpaal" })).toBeEnabled();
 });
 
 test("contact form validates consent and sends a contact notification", async ({ page }) => {
