@@ -12,6 +12,8 @@ Pragmatisch productieplan voor DuurzaamWoningKompas MVP.
 
 ## 2. Frontend
 
+Onderstaande deploymentcommando's zijn Linux-commando's en horen op de productieserver te worden uitgevoerd, niet in Windows PowerShell. Maak eerst verbinding met de server via SSH. `/var/www/DuurzaamKompas` en `/var/www/dwk-frontend` zijn serverpaden.
+
 ```bash
 cd /var/www/Duurzaamkompas
 git pull
@@ -21,6 +23,15 @@ npm run build
 rm -rf /var/www/dwk-frontend/*
 cp -r dist/* /var/www/dwk-frontend/
 ```
+
+Voor alleen lokaal bouwen in Windows PowerShell gebruikt u:
+
+```powershell
+$env:VITE_GTM_ID = "GTM-P9C3Q8TL"
+npm run build
+```
+
+De bestanden in `dist/` staan dan alleen lokaal. Upload of kopieer ze pas naar de Linux-webroot via de gekozen SSH-, SFTP- of deploymentprocedure.
 
 De repository staat in `/var/www/Duurzaamkompas` en de frontend webroot is `/var/www/dwk-frontend`. Vite verwerkt `VITE_GTM_ID` tijdens `npm run build`; de variabele moet dus vóór de build in de shell of deploymentomgeving beschikbaar zijn. Commit geen `.env.production` met productieconfiguratie. Een ontbrekende of ongeldige waarde schakelt alleen de GTM-loader uit en laat de applicatie verder werken.
 
