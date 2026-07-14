@@ -74,7 +74,7 @@ De Vite devserver proxyt `/api` en `/openapi` naar `http://localhost:5244`.
 
 Adminbeheer gebruikt een server-side sessiecookie via `/api/admin/session`. Zet geen admin secrets in Vite environment variables. De legacy header `X-Admin-Api-Key` werkt alleen wanneer `Admin__AllowApiKeyHeader=true` expliciet op de backend is gezet en is niet bedoeld voor de publieke frontend.
 
-Cookievoorkeuren dispatchen `dwk:cookie-consent-changed`. Succesvolle lead submission dispatcht `dwk:conversion-ready`; gebruik dit event voor Google Ads conversies en laad marketingtags pas na passende consent.
+De frontend initialiseert Google Consent Mode v2 vóór GTM en laadt GTM alleen bij een geldige build-time `VITE_GTM_ID`. Succesvolle lead submission plaatst eenmaal `generate_lead` in de centrale `dataLayer`; configuratie van GA4 en Google Ads staat in `GTM_SETUP.md`.
 
 ## Routing en hosting
 

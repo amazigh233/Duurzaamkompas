@@ -75,17 +75,17 @@ export function CookieConsent() {
       </div>
       <div className="cookie-actions">
         <button className="button button-secondary" type="button" onClick={() => closeWith({ analytics: false, marketing: false })}>
-          Weigeren
+          Alleen noodzakelijk
         </button>
         <button className="button button-secondary" type="button" onClick={() => setExpanded((current) => !current)}>
-          Voorkeuren beheren
+          Voorkeuren instellen
         </button>
         <button
           className="button button-primary"
           type="button"
           onClick={() => closeWith(expanded ? { analytics, marketing } : { analytics: true, marketing: true })}
         >
-          Accepteren
+          {expanded ? "Voorkeuren opslaan" : "Alles accepteren"}
         </button>
       </div>
     </div>

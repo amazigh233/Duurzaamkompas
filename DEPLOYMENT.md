@@ -13,12 +13,16 @@ Pragmatisch productieplan voor DuurzaamWoningKompas MVP.
 ## 2. Frontend
 
 ```bash
-nvm use
-npm install
+cd /var/www/Duurzaamkompas
+git pull
+npm ci
+export VITE_GTM_ID=GTM-P9C3Q8TL
 npm run build
+rm -rf /var/www/dwk-frontend/*
+cp -r dist/* /var/www/dwk-frontend/
 ```
 
-Deploy de inhoud van `dist/` naar de frontend hosting.
+De repository staat in `/var/www/Duurzaamkompas` en de frontend webroot is `/var/www/dwk-frontend`. Vite verwerkt `VITE_GTM_ID` tijdens `npm run build`; de variabele moet dus vóór de build in de shell of deploymentomgeving beschikbaar zijn. Commit geen `.env.production` met productieconfiguratie. Een ontbrekende of ongeldige waarde schakelt alleen de GTM-loader uit en laat de applicatie verder werken.
 
 Hosting moet SPA fallback ondersteunen:
 
@@ -112,12 +116,18 @@ De script controleert standaard ook of de TransIP SMTP- en IMAP-variabelen in de
 
 ## 6. Google Ads En Analytics
 
-Er is geen hardcoded Google Ads ID. Productietags moeten luisteren naar:
+De frontend gebruikt `VITE_GTM_ID=GTM-P9C3Q8TL`. Er is geen hardcoded GA4 Measurement ID, Google Ads Conversion ID of Conversion Label. Configureer die uitsluitend in GTM volgens `GTM_SETUP.md`.
 
-- `dwk:analytics` voor analytische events na analytische toestemming
-- `dwk:conversion-ready` voor conversie na marketingtoestemming
+- open de website via HTTPS;
+- verbind GTM Preview Mode;
+- controleer Consent Mode-default en updates;
+- controleer de initiële en SPA-`page_view` events;
+- verstuur een Woningcheck-testlead;
+- controleer één `generate_lead` met dezelfde `submission_id`;
+- controleer dat de lead in het CRM staat;
+- refresh en gebruik terug/vooruit om vast te stellen dat geen tweede conversie ontstaat.
 
-Configureer tags pas na controle van de cookiebanner en toestemming.
+Configureer en publiceer tags pas na controle van de cookiebanner en toestemming.
 
 ## 7. Rollback
 

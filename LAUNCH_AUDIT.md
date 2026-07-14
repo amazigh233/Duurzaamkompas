@@ -28,7 +28,7 @@ De bestaande MVP bevatte al een werkende React/Vite frontend, ASP.NET Core API, 
 
 - Juridische bedrijfsgegevens, KvK, btw, adres, privacy e-mailadres en e-mailleverancier moeten door de eigenaar worden ingevuld.
 - Privacyverklaring en algemene voorwaarden vereisen menselijke/juridische review.
-- Externe analytics en Google Ads tags zijn bewust nog niet geactiveerd; de consentarchitectuur en `dwk:conversion-ready` hook zijn voorbereid.
+- GTM en Consent Mode v2 zijn frontendmatig voorbereid; GA4- en Google Ads-tags moeten nog handmatig in GTM worden geconfigureerd en via Preview Mode worden gevalideerd volgens `GTM_SETUP.md`.
 - MFA of identity-provider voor admin is aanbevolen voor bredere productie-uitrol.
 - Exacte bewaartermijnen en operationele AVG-processen moeten organisatorisch worden vastgesteld.
 

@@ -14,7 +14,12 @@ import {
   woningtypes,
   zonnepanelenOpties,
 } from "../data";
-import { getTrackingData, trackAnalyticsEvent, trackLeadSubmittedOnce } from "../lib/tracking";
+import {
+  getTrackingData,
+  trackLeadSubmittedOnce,
+  trackWoningcheckStartedOnce,
+  trackWoningcheckStepCompletedOnce,
+} from "../lib/tracking";
 import { getSubmissionId, markSubmissionCompleted, readCompletedLead, resetSubmission } from "../lib/submission";
 import type { AdviceResult, CreateLeadResponse, WoningcheckAnswers } from "../types";
 
@@ -140,10 +145,9 @@ export function Woningcheck() {
       return;
     }
 
-    trackAnalyticsEvent("woningcheck_step_completed", {
-      funnel: "woningcheck",
-      step: step + 1,
-    });
+    const submissionId = getSubmissionId(submissionStorageKey);
+    if (step === 0) trackWoningcheckStartedOnce(submissionId, "woningcheck");
+    trackWoningcheckStepCompletedOnce(submissionId, "woningcheck", step + 1);
     setStep((current) => Math.min(current + 1, lastInputStep));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -157,19 +161,18 @@ export function Woningcheck() {
     setFieldErrors({});
 
     try {
+      const submissionId = getSubmissionId(submissionStorageKey);
+      const tracking = getTrackingData();
       const response = await submitWoningcheckLead(
-        getSubmissionId(submissionStorageKey),
+        submissionId,
         preparedAnswers,
-        getTrackingData(),
+        tracking,
         consentText,
         consentVersion
       );
       setCreatedLead(response);
       markSubmissionCompleted(submissionStorageKey, response);
-      trackLeadSubmittedOnce(response.id, {
-        funnel: "woningcheck",
-        productInterest: preparedAnswers.productInterest ?? "General",
-      });
+      trackLeadSubmittedOnce(submissionId, "woningcheck", preparedAnswers.productInterest ?? "General", tracking);
       localStorage.removeItem(STORAGE_KEY);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {

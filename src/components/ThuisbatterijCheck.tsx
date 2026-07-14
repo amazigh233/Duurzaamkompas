@@ -8,7 +8,12 @@ import {
   thuisbatterijDoelen,
   zonnepanelenOpties,
 } from "../data";
-import { getTrackingData, trackAnalyticsEvent, trackLeadSubmittedOnce } from "../lib/tracking";
+import {
+  getTrackingData,
+  trackLeadSubmittedOnce,
+  trackWoningcheckStartedOnce,
+  trackWoningcheckStepCompletedOnce,
+} from "../lib/tracking";
 import { getSubmissionId, markSubmissionCompleted, readCompletedLead, resetSubmission } from "../lib/submission";
 import type { CreateLeadResponse, WoningcheckAnswers } from "../types";
 
@@ -60,7 +65,6 @@ export function ThuisbatterijCheck() {
 
   useEffect(() => {
     getTrackingData();
-    trackAnalyticsEvent("thuisbatterij_check_viewed", { funnel: "thuisbatterij-check" });
     const completedLead = readCompletedLead(submissionStorageKey);
     if (completedLead) {
       setCreatedLead(completedLead);
@@ -127,13 +131,9 @@ export function ThuisbatterijCheck() {
       return;
     }
 
-    if (step === 0) {
-      trackAnalyticsEvent("thuisbatterij_check_started", { funnel: "thuisbatterij-check" });
-    }
-    trackAnalyticsEvent("woningcheck_step_completed", {
-      funnel: "thuisbatterij-check",
-      step: step + 1,
-    });
+    const submissionId = getSubmissionId(submissionStorageKey);
+    if (step === 0) trackWoningcheckStartedOnce(submissionId, "thuisbatterijcheck");
+    trackWoningcheckStepCompletedOnce(submissionId, "thuisbatterijcheck", step + 1);
     setStep((current) => Math.min(current + 1, lastInputStep));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -147,19 +147,18 @@ export function ThuisbatterijCheck() {
     setFieldErrors({});
 
     try {
+      const submissionId = getSubmissionId(submissionStorageKey);
+      const tracking = getTrackingData();
       const response = await submitWoningcheckLead(
-        getSubmissionId(submissionStorageKey),
+        submissionId,
         preparedAnswers,
-        getTrackingData(),
+        tracking,
         consentText,
         consentVersion
       );
       setCreatedLead(response);
       markSubmissionCompleted(submissionStorageKey, response);
-      trackLeadSubmittedOnce(response.id, {
-        funnel: "thuisbatterij-check",
-        productInterest: "Thuisbatterij",
-      });
+      trackLeadSubmittedOnce(submissionId, "thuisbatterijcheck", "Thuisbatterij", tracking);
       localStorage.removeItem(STORAGE_KEY);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {

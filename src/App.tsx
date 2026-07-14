@@ -13,6 +13,7 @@ import type { AdminPage } from "./components/admin/AdminDashboard";
 import { openCookiePreferences } from "./components/CookieConsent";
 import { siteConfig } from "./siteConfig";
 import type { KnowledgeArticle, RouteState, SolutionSlug } from "./types";
+import { trackContactFormSubmitted, trackPageView } from "./lib/tracking";
 
 interface SeoMetadata {
   title: string;
@@ -323,7 +324,14 @@ export default function App() {
 
   useEffect(() => {
     applySeo(route);
+    trackPageView();
   }, [route]);
+
+  useEffect(() => {
+    const trackCurrentPageAfterConsent = () => trackPageView();
+    window.addEventListener("dwk:cookie-consent-updated", trackCurrentPageAfterConsent);
+    return () => window.removeEventListener("dwk:cookie-consent-updated", trackCurrentPageAfterConsent);
+  }, []);
 
   const page = useMemo(() => {
     switch (route.name) {
@@ -773,6 +781,7 @@ function ContactPage() {
         sourceUrl: window.location.href,
         honeypot: form.website,
       });
+      trackContactFormSubmitted();
       setSuccess(true);
       setForm({
         name: "",

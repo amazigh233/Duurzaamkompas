@@ -19,6 +19,7 @@ Checklist voor een gecontroleerde productie-lancering en eerste Google Ads test 
 ## Frontend Environment
 
 - Zet `VITE_API_BASE_URL` alleen wanneer frontend en API niet dezelfde origin gebruiken.
+- Zet `VITE_GTM_ID=GTM-P9C3Q8TL` in de buildomgeving vóór `npm run build`.
 - Zet nooit admin credentials of API-keys in Vite environment variables.
 - Configureer hosting rewrites zodat `/thuisbatterij-check` direct naar de SPA entrypoint wijst.
 - Controleer dat `/thuisbatterij-check?utm_source=google&utm_medium=cpc&utm_campaign=...&gclid=...` een HTTP 200 geeft.
@@ -77,13 +78,13 @@ Checklist voor een gecontroleerde productie-lancering en eerste Google Ads test 
 
 - Gebruik `/thuisbatterij-check` als finale advertentielanding.
 - Zorg dat UTM parameters en `gclid` aan advertentie-URL's worden toegevoegd.
-- Koppel conversiemeting aan het `dwk:conversion-ready` browser event.
+- Koppel conversiemeting in GTM aan het Custom Event `generate_lead` en gebruik `submission_id` voor deduplicatie waar de tag dit ondersteunt.
 - Test met Google Tag Assistant voordat de campagne live gaat.
 - Test dat refresh op de bedankstatus geen dubbele conversie-event veroorzaakt.
 
 ## Analytics Setup
 
-- Meet minimaal funnel events: check viewed, started, step completed en lead submitted.
+- Meet minimaal `page_view`, `woningcheck_started`, `woningcheck_step_completed`, `generate_lead` en `contact_form_submitted`.
 - Vermijd persoonsgegevens in analytics payloads.
 - Controleer consent mode/cookie-instellingen voor EU/Nederland.
 

@@ -53,8 +53,9 @@ Opslag:
 - Matchingconsent is optioneel en apart.
 - Checkboxes zijn niet vooraf aangevinkt.
 - Cookievoorkeuren hebben noodzakelijke, analytische en marketingcategorieën.
-- Analytische browser-events worden alleen uitgezonden na analytische toestemming.
-- Het marketing/conversion event `dwk:conversion-ready` wordt alleen uitgezonden na marketingtoestemming.
+- Consent Mode v2 staat standaard op `denied` voor analyticsopslag en alle advertentiewaarden, vóór GTM wordt geladen.
+- Analytische dataLayer-events worden alleen geplaatst na analytische toestemming.
+- `generate_lead` wordt alleen geplaatst na analytische en/of marketingtoestemming en uitsluitend na een succesvolle API-response.
 
 ## Cookies En Browseropslag
 
@@ -65,10 +66,10 @@ Huidige implementatie:
 - `localStorage`: UTM/gclid/referrer/landing page attributie voor leadcontext
 - `localStorage`: submission-id en afgeronde leadreferentie tegen dubbele submissions
 - `localStorage`: cookievoorkeuren en consentversie
-- `sessionStorage`: lead ids waarvoor een submit/conversion event al is verwerkt
+- `localStorage`: submission-id's waarvoor `generate_lead` al is verwerkt, zodat refresh en een nieuwe browsersessie niet dubbel meten
 - HttpOnly cookie `dwk-admin-session`: adminsessie
 
-Er zijn geen hardcoded externe analytics-, advertentie- of marketingtags.
+GTM wordt centraal geladen via de build-time variabele `VITE_GTM_ID`. GA4- en Google Ads-ID's staan niet in de frontend. De dataLayer bevat alleen routegegevens, funnelstappen, product-/leadtype, submission-id en veilige campagneattributie; formulierinhoud en persoonsgegevens worden niet meegestuurd.
 
 ## Beveiliging
 

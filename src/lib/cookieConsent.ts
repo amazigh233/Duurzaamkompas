@@ -1,3 +1,6 @@
+import { updateConsentMode } from "./consentMode";
+import { pushDataLayerEvent } from "./dataLayer";
+
 export const cookieConsentVersion = "2026-07-06";
 const storageKey = "dwk_cookie_consent";
 
@@ -37,6 +40,12 @@ export function writeCookieConsent(partial: { analytics: boolean; marketing: boo
     updatedAt: new Date().toISOString(),
   };
   localStorage.setItem(storageKey, JSON.stringify(state));
+  updateConsentMode(state);
+  pushDataLayerEvent("cookie_consent_updated", {
+    analytics: state.analytics,
+    marketing: state.marketing,
+    consent_version: state.version,
+  });
   window.dispatchEvent(new CustomEvent("dwk:cookie-consent-updated", { detail: state }));
   window.dispatchEvent(new CustomEvent("dwk:cookie-consent-changed", { detail: state }));
   return state;
